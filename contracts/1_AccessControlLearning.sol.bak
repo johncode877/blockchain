@@ -10,9 +10,8 @@ pragma solidity ^0.8.9;
 contract AccessControlLearning {
     
      struct Usuario {
-      uint256 remain;
+      uint256 limit;
       bool hasRole;
-      bool hasTempRole;
     }
 
     // 0. Definir el rol de admin con el cual se inicializa el smart contract
@@ -41,11 +40,9 @@ contract AccessControlLearning {
     constructor() {
 
         Usuario memory usuario = Usuario({
-          remain: 0,
-          hasRole: true,
-          hasTempRole: false
+          limit: 0,
+          hasRole: true
         });
-
         roles[msg.sender][DEFAULT_ADMIN_ROLE] = usuario;
         //roles[msg.sender][MINTER_ROLE] = true;
         //roles[msg.sender][BURNER_ROLE] = true;
@@ -69,28 +66,13 @@ contract AccessControlLearning {
     function grantRole(address _account, bytes32 role) public onlyRole(DEFAULT_ADMIN_ROLE) {
         Usuario storage usuario = roles[_account][role];
         usuario.hasRole = true;
-         
-        Usuario storage caller = roles[msg.sender][role];
-        if(caller.hasTempRole){
-            // disminuye la cantidad de veces que puede llamar
-            uint256 _remain = caller.remain;
-            _remain-=1;
-            if(_remain<=0){
-                caller.remain = 0;
-                caller.hasTempRole = false;
-            }else{
-                caller.remain = _remain;
-            }
-        }
     }
 
     // 4. crear modifier que verifica el acceso de los roles
     modifier onlyRole(bytes32 _role) {
         Usuario memory usuario = roles[msg.sender][_role];
         bool _hasRole = usuario.hasRole;
-        bool _hasTempRole = usuario.hasTempRole;
-        uint256 _remain = usuario.remain;
-        require(_hasRole || (_hasTempRole && _remain>0), "Cuenta no tiene el rol necesario");
+        require(_hasRole, "Cuenta no tiene el rol necesario");
         _;
     }
     
@@ -140,8 +122,8 @@ contract AccessControlLearning {
     ) public onlyRole(DEFAULT_ADMIN_ROLE) {         
          require(_limit > 1 ,"limite invalido");
          Usuario storage usuario = roles[_account][_role];         
-         usuario.hasTempRole = true;
-         usuario.remain = _limit;
+         usuario.hasRole = true;
+         usuario.limit = _limit;
     }
 
 
@@ -153,14 +135,32 @@ contract AccessControlLearning {
 
     function hasTemporaryRole(address _account, bytes32 _role) 
         public 
-        view
         returns (bool, uint256){
         Usuario storage usuario = roles[_account][_role];
 
-        uint256 _remain = usuario.remain;
-        bool _hasTempRole = usuario.hasTempRole;
+        uint256 _limit = usuario.limit;
+        bool _hasRole = usuario.hasRole;
         
-        return (_hasTempRole,_remain);       
+        uint256 _limitNew=_limit-1;
+        _limitNew = _limitNew>0?_limitNew:0;
+        usuario.limit = _limitNew;
+        _hasRole= _limitNew>0;
+        usuario.hasRole = _hasRole;
+
+        /*
+        if((_limit<=0) && !_hasRole){
+            return (false,0);        
+        }
+        
+        _limit--;
+        _limit = _limit>0?_limit:0;
+        rolesTemporarily[_account][_role] = _limit;
+        if((_hasRole)&&(_limit<=0)){
+          _hasRole = false;
+          roles[_account][_role] = _hasRole;
+        }
+        */
+        return (_hasRole,_limit);       
     }
 
 }

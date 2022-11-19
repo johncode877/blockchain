@@ -1,6 +1,5 @@
 node_modules
 .env
-*.bak
 contracts/*.bak
 coverage
 coverage.json
